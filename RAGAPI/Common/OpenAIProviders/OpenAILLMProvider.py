@@ -10,8 +10,7 @@ class OpenAILLMProvider(OpenAIProvider):
                  api_base: str,
                  api_key:str, 
                  llm_model_name: str,
-                 temperature: float = 1.0,
-                 stream: bool = False
+                 temperature: float = 1.0
                 ):
         super().__init__(api_base=api_base,
                          api_key=api_key,
@@ -19,7 +18,6 @@ class OpenAILLMProvider(OpenAIProvider):
                         )
         self.model_name = llm_model_name
         self.temperature = temperature
-        self.stream = stream
         
     def chat_completion(self, user_assistant_messages: Iterable[ChatCompletionMessageParam]):
         response = self.oai_client.chat.completions.create(
@@ -27,7 +25,17 @@ class OpenAILLMProvider(OpenAIProvider):
                                                     response_format={ "type": "json_object" },
                                                     messages= user_assistant_messages,
                                                     temperature = self.temperature,
-                                                    stream=self.stream
+                                                    stream=False
                                                 )
-        return response.choices[0].message.content       
+        return response.choices[0].message.content
+    
+    def stream_chat_completion(self, user_assistant_messages: Iterable[ChatCompletionMessageParam]):
+        stream = self.oai_client.chat.completions.create(
+                                                    model = self.model_name,
+                                                    response_format={ "type": "json_object" },
+                                                    messages= user_assistant_messages,
+                                                    temperature = self.temperature,
+                                                    stream=True
+                                                )
+        return stream
 

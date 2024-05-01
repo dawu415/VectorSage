@@ -7,6 +7,7 @@ from typing import List, Dict, Any
 from dataclasses import dataclass
 import logging
 import string
+import json
 
 from TextChunker import TextChunker
 
@@ -183,7 +184,8 @@ class RAGDataProvider:
                                 topic_domain: str, 
                                 schema_table_name: str,
                                 context_learning = List[Dict[str, Any]], 
-                                lost_in_middle_reorder: bool = False
+                                lost_in_middle_reorder: bool = False,
+                                stream: bool=False
                                 ):
         
         # prompt_template: str = """
@@ -265,8 +267,18 @@ Respond appropriately based on the guidelines above, without mentioning them to 
         # Get the context learning and concatenate with the prompt to form a new prompt
         message = context_learning + [{"role": "user", "content": prompt}]
 
-        # Send the new prompt to an LLM to generate a response.
-        response = self.oai_llm.chat_completion(message)
+        response = None
+        if stream:
+            streaming_response = self.oai_llm.stream_chat_completion(message)
 
-        return response
+            for message in streaming_response:
+                if message.choices[0].delta.content != None:
+                    # Unfortunately, we have to deal with escaping newlines, otherwise
+                    # some frontend libraries just strip the newlines out.
+                    escaped_content = message.choices[0].delta.content.replace("\n", "\\n")
+                    yield f"data: {json.dumps(escaped_content)}\n\n".encode('utf-8')
+        else:
+            # Send the new prompt to an LLM to generate a response.
+            response = self.oai_llm.chat_completion(message)
+            return response
 

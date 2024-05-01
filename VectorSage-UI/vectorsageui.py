@@ -7,6 +7,8 @@ import  json
 import logging
 import requests
 
+from SSERequestClient import SSERequestClient
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +27,7 @@ class VectorSageUI:
     listen_port: int
     cached_knowledgebases: List[KnowledgeBase] = field(default_factory=list)
     current_knowledgebase: KnowledgeBase = None
-
+    
     ### GRADIO TOP LEVEL FUNCTIONS
     def _init_history(self, messages_history: gradio.State):
         messages_history = []
@@ -34,31 +36,47 @@ class VectorSageUI:
     def _process_user_input(self, user_query: gradio.Textbox, history: gradio.Chatbot):
         return "", history + [[user_query, None]]
 
-    def _complete_chat(self, history: gradio.Chatbot, messages_history: gradio.State):
+    def _complete_chat(self, history: gradio.Chatbot, messages_history: gradio.State, message_textbox: gradio.Textbox):
+        # Get the user query
         user_query = history[-1][0]
-        ## No History for now. 
+        
+        # Prepare to concantenate the stream of data
+        history[-1][1] = ""
+
+        # No History for now. 
         # messages = messages_history
+
         if self.current_knowledgebase:
             cur_kb = self.current_knowledgebase
-            endpoint = urljoin(self.llm_rag_services_host, "respond_to_user_query")
-            response = requests.post(endpoint,
-                                    data = {
-                                        "query": user_query,
-                                        "topic_domain": cur_kb.topic_domain,
-                                        "schema_table_name": cur_kb.schema_table_name,
-                                        "do_lost_in_middle_reorder": True,
-                                        "context_learning": json.dumps(cur_kb.context_learning)
-                                    })
-        
-        logging.info(f"Response Content: \n {response}")
-        logging.info(f"Response Content: \n {response.json().strip()}")
-        
-        # Update the chat history with the LLM response and return
-        messages_history += [{"role": "user", "content": user_query}]
-        messages_history += [{"role": "assistant", "content": response.json().strip()}]
-        history[-1][1] = response.json().strip()
+            url = urljoin(self.llm_rag_services_host, "respond_to_user_query")
+            # we will just initate a stream and do nothing with the messages. 
+            with requests.post(url, data = {
+                            "query": user_query,
+                            "topic_domain": cur_kb.topic_domain,
+                            "schema_table_name": cur_kb.schema_table_name,
+                            "do_lost_in_middle_reorder": True,
+                            "context_learning": json.dumps(cur_kb.context_learning),
+                            "stream": True
+                        }
+                        , stream=True) as response_stream:
+                
+                for line in response_stream.iter_lines(decode_unicode=True):
+                    if line.startswith("data:"):
+                        data = line[5:]
+                        if data:
+                            if data[0] == ' ':  # SSE Standard - Remove white space in front, if any
+                                data = data[1:]
 
-        return history, messages_history
+                            # Parse the JSON string and unescape newline characters
+                            unescaped_data = json.loads(data).replace("\\n", "\n")
+                            history[-1][1] += unescaped_data
+
+                    yield history, messages_history, gradio.Textbox(placeholder="Providing response. Please wait...", interactive=False)
+
+        # Update the chat history with the LLM response and return
+        messages_history += [{"role": "assistant", "content": history[-1][1] }]
+
+        yield history, messages_history, gradio.Textbox(placeholder="Enter Your Query Here", interactive=True)
         
     # Get the list of Knowledge Bases available
     def _fetch_dropdown_knowledge_options(self):
@@ -111,6 +129,7 @@ class VectorSageUI:
             message_textbox = gradio.Textbox(placeholder="Enter Your Query Here")
             clear_button = gradio.Button("Clear Session")
             message_history = gradio.State([])
+            
 
             # UI Init
             grai_ui.load( 
@@ -128,9 +147,9 @@ class VectorSageUI:
                         
             message_textbox.submit(
                                     self._process_user_input, [message_textbox, chatbot], [message_textbox, chatbot], queue=False
-                                ).success(
-                                            self._complete_chat, [chatbot, message_history], [chatbot, message_history],
-                                        )
+                                ).then(
+                                        self._complete_chat, [chatbot, message_history, message_textbox], [chatbot, message_history, message_textbox]
+                                      )
 
         grai_ui.launch(server_name="0.0.0.0", server_port = self.listen_port, debug = True)    
 

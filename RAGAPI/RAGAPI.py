@@ -5,7 +5,7 @@ import json
 import os
 import argparse
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 from cfenv import AppEnv
 
 from TextChunker import ModelTokenizedTextChunker
@@ -194,6 +194,7 @@ def respond_to_user_query():
         topic_domain = request.form.get('topic_domain')
         do_lost_in_middle_reorder = request.form.get('do_lost_in_middle_reorder', False)
         context_learning_str = request.form.get('context_learning', "[]")
+        stream = request.form.get('stream', False)
 
         if not query:
             return jsonify({'error': 'Query is required.'}), 400
@@ -203,7 +204,7 @@ def respond_to_user_query():
             return jsonify({'error': 'Schema + Table name is required.'}), 400        
 
         if context_learning_str:
-            logging.info(context_learning_str)
+            logging.debug(context_learning_str)
             try:
                 context_learning = json.loads(context_learning_str)
 
@@ -220,15 +221,21 @@ def respond_to_user_query():
                 logging.info(e)
                 return jsonify({'error': f'Malformed JSON in context_learning: {str(e)}'}), 400
 
-
-        results = RAG_PROVIDER.respond_to_user_query(
-                                                    query=query,
-                                                    topic_domain=topic_domain,
-                                                    schema_table_name=schema_table_name,
-                                                    context_learning=context_learning,
-                                                    lost_in_middle_reorder=do_lost_in_middle_reorder
-                                                    )
-        return jsonify(results)
+            def process_query():
+                results = RAG_PROVIDER.respond_to_user_query(
+                                                                query=query,
+                                                                topic_domain=topic_domain,
+                                                                schema_table_name=schema_table_name,
+                                                                context_learning=context_learning,
+                                                                lost_in_middle_reorder=do_lost_in_middle_reorder,
+                                                                stream=stream
+                                                            )
+                return results
+            
+            if stream:
+                return Response(stream_with_context(process_query()), mimetype='text/event-stream')
+            else:
+                return jsonify(process_query())
     except Exception as e:
         logging.info({'error': str(e)})
         return jsonify({'error': str(e)}), 500
@@ -262,7 +269,8 @@ def initialize_and_start_service(args):
     oai_llm = OpenAILLMProvider(api_base=api_base,
                                 api_key=api_key,
                                 llm_model_name=llm_model_name,
-                                temperature=0.0)
+                                temperature=0.0
+                                )
                                 
     
     chunker = ModelTokenizedTextChunker(model_tokenizer_path=embed_model_name)
