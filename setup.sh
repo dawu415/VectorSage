@@ -30,6 +30,29 @@ if [[ "$SKIP_PUSH" == "false" ]]; then
 
     VS_APP_NAME=$(awk '/^[ ]*- name:/{print $NF}' VectorSage-UI/manifest.yml | tr -d '[:space:]')
     VECTORSAGE_ROUTE=$(cf app "$VS_APP_NAME" | awk '/routes/{print $2}' | cut -d, -f1)
+
+    CONTEXT_PAYLOAD='[
+        {
+            "role": "user",
+            "content": "Who are you? Or what are you?"
+        },
+        {
+            "role": "assistant",
+            "content": "I am an assistant on Cloud Foundry topics."
+        },
+        {
+            "role": "user",
+            "content": "What does CF stand for?"
+        },
+        {
+            "role": "assistant",
+            "content": "CF is Cloud Foundry."
+        }
+    ]'
+
+    curl "https://${CHUNKER_ROUTE}/update_context_learning" \
+                -F "topic_display_name=${TOPIC_DISPLAY_NAME}" \
+                -F "context_learning=${CONTEXT_PAYLOAD}"
 else
     echo "Using existing app deployments..."
     # Assumed services and apps have been pushed already
@@ -67,7 +90,7 @@ fi
 curl "https://${CHUNKER_ROUTE}/clear_embeddings" \
             -F "topic_display_name=${TOPIC_DISPLAY_NAME}"
 
-./upload-files.sh "$CHUNKER_ROUTE" "$TOPIC_DISPLAY_NAME" "./OS-CF-docs-Apr-2024/" 
+./upload-files.sh "$CHUNKER_ROUTE" "$TOPIC_DISPLAY_NAME" "./OS-CF-docs-Apr-2024/"
 
 echo "Routes for the apps:"
 echo "Chunker: https://${CHUNKER_ROUTE}"
