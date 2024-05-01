@@ -82,25 +82,6 @@ class RAGDataProvider:
                 text_chunks = self.chunker.chunk_text(markdown_content,
                                                       token_chunk_size=token_chunk_size)
                 logging.info(f"Total Chunks: {len(text_chunks)}")
-
-                # logging.info("Test Chunking 2 ...")
-                # text_chunks = self.chunker.chunk_text(markdown_content)
-                # logging.info(f"Total Chunks: {len(text_chunks)}")                
-
-                # logging.info(text_chunks)
-
-
-                # logging.info("Test Chunking 3 ...")
-                # text_chunks = self.chunker.chunk_text_semantically(markdown_content)
-                # logging.info(f"Total Chunks: {len(text_chunks)}")                
-
-                # logging.info(text_chunks)
-
-                # logging.info("Test Chunking 4 ...")
-                # text_chunks = self.chunker.build_tree_start(markdown_content)
-                # #logging.info(f"Total Chunks: {len(text_chunks)}")                
-
-                # logging.info(text_chunks.print_tree())
                 
                 logging.info("Generating embeddings...")
                 chunk_list = []
@@ -201,7 +182,7 @@ class RAGDataProvider:
 1. Use only information from the context to answer the query. Ignore irrelevant details and provide complete sentences and information.
 2. Do not infer, assume, or add information not explicitly mentioned in the context. Remain objective and avoid personal opinions or biases.
 3. If the context lacks necessary information, respond with "I don't have enough information to answer this query."
-4. Provide detailed, helpful, and well-structured responses without prompting the user to check the context or mentioning that you are using provided context.
+4. Provide detailed, helpful, and well-structured responses without telling the user to refer, check or read the provided context or mentioning that you are using provided context.
 5. Do not expand acronyms unless specified and provided in the context.
 6. Minimize references to previous answers or queries.
 7. Do not repeat the user's query in your response.
