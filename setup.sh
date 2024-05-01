@@ -1,6 +1,10 @@
 #!/bin/bash
 # Usage: setup.sh [TOPIC_DISPLAY_NAME] [TOPIC_DOMAIN] [EMBEDDING_VECTOR_SIZE]
 
+# WARNING: This setup assumes you have logged into CF, and have a blank database of embeddings
+# this script will clear out all pre-created embeddings.  Run upload-files.sh on its own if you wish to
+# experiment with different files.
+
 set +x
 
 TOPIC_DISPLAY_NAME="${1:-Cloud Foundry OSS Docs}" 
@@ -58,6 +62,10 @@ else
                 -F "topic_display_name=${TOPIC_DISPLAY_NAME}" \
                 -F "context_learning=${CONTEXT_PAYLOAD}"
 fi
+
+# Clear out all embeddings for the knowledge base before starting the upload.
+curl "https://${CHUNKER_ROUTE}/clear_embeddings" \
+            -F "topic_display_name=${TOPIC_DISPLAY_NAME}"
 
 ./upload-files.sh "$CHUNKER_ROUTE" "$TOPIC_DISPLAY_NAME" "./OS-CF-docs-Apr-2024/" 
 
