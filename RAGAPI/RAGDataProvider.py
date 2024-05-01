@@ -163,7 +163,7 @@ class RAGDataProvider:
     def respond_to_user_query(  self,
                                 query: str, 
                                 topic_display_name: str,
-                                override_context_learning = List[Dict[str, Any]], 
+                                override_context_learning: List[Dict[str, Any]] = None, 
                                 lost_in_middle_reorder: bool = False,
                                 stream: bool=False
                                 ):
@@ -252,7 +252,7 @@ Respond appropriately based on the guidelines above, without mentioning them to 
         context_learning = kb.context_learning
         if override_context_learning:
             context_learning = override_context_learning
-
+        
         # Get the context learning and concatenate with the prompt to form a new prompt
         message = context_learning + [{"role": "user", "content": prompt}]
 

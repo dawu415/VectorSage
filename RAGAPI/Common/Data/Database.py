@@ -249,8 +249,13 @@ class RAGDatabase:
             # If topic_display_name is not specified, it will retrieve all rows.
             knowledgebase_selectsql = KnowledgeBase.generate_get_knowledgebase_sql(self.default_schema, topic_display_name)
             
+            def parse_context_learning(record:KnowledgeBase):
+                record.context_learning = json.loads(record.context_learning)
+                return record
+
             with self.connect() as conn, conn.cursor(row_factory=class_row(KnowledgeBase)) as cur:
                 kb = cur.execute(knowledgebase_selectsql).fetchall()
+                kb = [parse_context_learning(record) for record in kb] # convert the context_learning to json
             return kb
         except Exception as e:
             logging.error(f"An error occurred while listing knowledgebase: {e}")

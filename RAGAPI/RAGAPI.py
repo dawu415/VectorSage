@@ -198,7 +198,7 @@ def respond_to_user_query():
         query = request.form.get('query')
         topic_display_name = request.form.get('topic_display_name')
         do_lost_in_middle_reorder = request.form.get('do_lost_in_middle_reorder', False)
-        override_context_learning_str = request.form.get('override_context_learning', "[]")
+        override_context_learning_str = request.form.get('override_context_learning', None)
         stream = request.form.get('stream', False)
 
         if not query:
@@ -207,6 +207,7 @@ def respond_to_user_query():
         if not topic_display_name:
             return jsonify({'error': 'Topic display name is required.'}), 400   
 
+        context_learning = None
         if override_context_learning_str:
             logging.debug(override_context_learning_str)
             try:
@@ -224,21 +225,21 @@ def respond_to_user_query():
             except json.JSONDecodeError as e:
                 logging.info(e)
                 return jsonify({'error': f'Malformed JSON in context_learning: {str(e)}'}), 400
-
-            def process_query():
-                results = RAG_PROVIDER.respond_to_user_query(
-                                                                query=query,
-                                                                topic_display_name=topic_display_name,
-                                                                override_context_learning=context_learning,
-                                                                lost_in_middle_reorder=do_lost_in_middle_reorder,
-                                                                stream=stream
-                                                            )
-                return results
-            
-            if stream:
-                return Response(stream_with_context(process_query()), mimetype='text/event-stream')
-            else:
-                return jsonify(process_query())
+        
+        def process_query():
+            results = RAG_PROVIDER.respond_to_user_query(
+                                                            query=query,
+                                                            topic_display_name=topic_display_name,
+                                                            override_context_learning=context_learning,
+                                                            lost_in_middle_reorder=do_lost_in_middle_reorder,
+                                                            stream=stream
+                                                        )
+            return results
+        
+        if stream:
+            return Response(stream_with_context(process_query()), mimetype='text/event-stream')
+        else:
+            return jsonify(process_query())
     except Exception as e:
         logging.info({'error': str(e)})
         return jsonify({'error': str(e)}), 500
