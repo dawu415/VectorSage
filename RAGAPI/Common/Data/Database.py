@@ -43,7 +43,7 @@ class KnowledgeBase:
                         topic_display_name TEXT,
                         schema_table_name TEXT,
                         topic_domain TEXT,
-                        context_learning JSONB
+                        context_learning JSONB not null default '[]'::jsonb
                     );
                     """).format(Identifier(schema, KnowledgeBase.class_name()))
 
@@ -100,7 +100,7 @@ class KnowledgeBase:
         context_json = json.dumps(new_context)  # Ensure the new context is properly encoded to JSON
         return SQL("UPDATE {table_name} SET context_learning = {new_context} WHERE topic_display_name = {topic_display_name}").format(
             table_name=table_name,
-            new_context=Literal(context_json),
+            new_context=json.dumps(context_json),
             topic_display_name=Literal(topic_display_name)
         )
 
@@ -198,18 +198,20 @@ class RAGDatabase:
             logging.error(f"An error occurred while setting up the database on startup: {e}")
             raise e
     
-    def create_knowledge_base(self, topic_display_name:str, table_name: str, topic_domain: str, context_learning:List[Dict[str, Any]], vector_size:int = 768):
+    def create_knowledge_base(self, topic_display_name:str, table_name: str, topic_domain: str, context_learning:List[Dict[str, Any]]=None, vector_size:int = 768):
         try:
            # Generate the SQL statement and return the target row data that Knowledgebase contains
             knowledgebase_insertsql = KnowledgeBase.generate_insert_sql(self.default_schema)
             
             if context_learning == None:
                 context_learning = []
+            
             # Generate Knowledge Embedding Creation SQL
             kbembed_table_creation_sql = KnowledgeBaseEmbedding.generate_create_table_sql(self.default_schema, table_name, vector_size)
             knowledgebase_insertsql_with_data = (knowledgebase_insertsql,
-                                                [topic_display_name, f"{self.default_schema}.{table_name}", topic_domain, context_learning]
+                                                [topic_display_name, f"{self.default_schema}.{table_name}", topic_domain, json.dumps(context_learning)]
                                                 )
+
             with self.connect() as conn, conn.cursor() as cur:
                 # Create the table for storing embeddings
                 cur.execute(kbembed_table_creation_sql)

@@ -125,7 +125,7 @@ class RAGDataProvider:
                              topic_display_name:str,
                              vector_size: int,
                              topic_domain: str,
-                             context_learning: List[Dict[str,Any]]):
+                             context_learning: List[Dict[str,Any]] = None):
         
         # Make table name singular. Don't use caps/punctuations for easier maintainance
         table_name = ''.join([word.lower().translate(str.maketrans('','',string.punctuation)) 

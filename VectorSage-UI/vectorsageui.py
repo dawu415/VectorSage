@@ -75,7 +75,6 @@ class VectorSageUI:
     def _handle_dropdown_selection(self, selected_topic: str):
         """Handle the dropdown selection and fetch more data."""
         logging.info(f"handling dropdown - selected: {selected_topic}")
-        kb_list = self.cached_knowledgebases
         self.current_knowledgebase = selected_topic
 
     def _refresh_dropdown_data(self):
@@ -87,7 +86,7 @@ class VectorSageUI:
         if (cur_kb == None and len(kb_list) > 0) or (cur_kb != None and len(kb_list) > 0 and cur_kb not in kb_list):
             self.current_knowledgebase = kb_list[0]
 
-        return gradio.Dropdown(choices=self.cached_knowledgebases, label="Select Knowledge Base", value =self.current_knowledgebase, interactive=True)
+        return gradio.Dropdown(choices=self.cached_knowledgebases, label="Select Knowledge Base", value=self.current_knowledgebase, interactive=True)
 
     def start(self):
         with gradio.Blocks(fill_height=True) as grai_ui:
@@ -105,13 +104,14 @@ class VectorSageUI:
             clear_button = gradio.Button("Clear Session")
             message_history = gradio.State([])
             
-
             # UI Init
             grai_ui.load( 
                             lambda: None, None, chatbot, queue=False
-                        ).success(
+                        ).then(
+                            self._refresh_dropdown_data, inputs=[], outputs = [kb_dropdown]
+                            ).success(
                                 self._init_history, [message_history], [message_history]
-                                 )
+                                )
 
             # Chained actions on submission
             clear_button.click(
