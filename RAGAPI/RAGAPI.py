@@ -102,8 +102,14 @@ def create_knowledge_base():
 @app.route('/list_knowledge_bases', methods=['GET'])
 def list_knowledge_bases():
     try:
+        topic_display_name_only = request.args.get('topic_display_name_only', type=bool, default=False)
         knowledge_bases = RAG_PROVIDER.get_all_knowledgebases()
-        return jsonify({'knowledge_bases': knowledge_bases})
+
+        result = knowledge_bases
+        if topic_display_name_only:
+            result = [kb.topic_display_name  for kb in knowledge_bases]
+
+        return jsonify({'knowledge_bases': result})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -190,23 +196,21 @@ def clear_embeddings():
 def respond_to_user_query():
     try:
         query = request.form.get('query')
-        schema_table_name = request.form.get('schema_table_name')
-        topic_domain = request.form.get('topic_domain')
+        topic_display_name = request.form.get('topic_display_name')
         do_lost_in_middle_reorder = request.form.get('do_lost_in_middle_reorder', False)
-        context_learning_str = request.form.get('context_learning', "[]")
+        override_context_learning_str = request.form.get('override_context_learning', "[]")
         stream = request.form.get('stream', False)
 
         if not query:
-            return jsonify({'error': 'Query is required.'}), 400
-        if not topic_domain:
-            return jsonify({'error': 'Topic domain is required.'}), 400      
-        if not schema_table_name:
-            return jsonify({'error': 'Schema + Table name is required.'}), 400        
+            return jsonify({'error': 'Query is required.'}), 400   
 
-        if context_learning_str:
-            logging.debug(context_learning_str)
+        if not topic_display_name:
+            return jsonify({'error': 'Topic display name is required.'}), 400   
+
+        if override_context_learning_str:
+            logging.debug(override_context_learning_str)
             try:
-                context_learning = json.loads(context_learning_str)
+                context_learning = json.loads(override_context_learning_str)
 
                 if context_learning:
                     is_valid_context_learning = all(
@@ -224,9 +228,8 @@ def respond_to_user_query():
             def process_query():
                 results = RAG_PROVIDER.respond_to_user_query(
                                                                 query=query,
-                                                                topic_domain=topic_domain,
-                                                                schema_table_name=schema_table_name,
-                                                                context_learning=context_learning,
+                                                                topic_display_name=topic_display_name,
+                                                                override_context_learning=context_learning,
                                                                 lost_in_middle_reorder=do_lost_in_middle_reorder,
                                                                 stream=stream
                                                             )

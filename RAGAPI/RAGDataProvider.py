@@ -181,9 +181,8 @@ class RAGDataProvider:
 
     def respond_to_user_query(  self,
                                 query: str, 
-                                topic_domain: str, 
-                                schema_table_name: str,
-                                context_learning = List[Dict[str, Any]], 
+                                topic_display_name: str,
+                                override_context_learning = List[Dict[str, Any]], 
                                 lost_in_middle_reorder: bool = False,
                                 stream: bool=False
                                 ):
@@ -246,12 +245,16 @@ Respond appropriately based on the guidelines above, without mentioning them to 
                 else:
                     shuffled_result.insert(0, value)
             return shuffled_result
+        
+        # Get the knowledge base
+        kb = self.database.get_knowledge_base(topic_display_name=topic_display_name)[0]
+
         # Convert user query into an embedding with the instruction
-        instruction = f"Represent this {topic_domain} question for retrieving supporting documents:"
+        instruction = f"Represent this {kb.topic_domain} question for retrieving supporting documents:"
         query_embedding = self.oai_embed.get_embeddings_with_instructions(instruction, query)
         # Use the result to search for similar content from the vector db
         results = self.database.get_content_with_cosine_similarity(queryembedding=query_embedding, 
-                                                                   schema_table_name=schema_table_name,
+                                                                   schema_table_name=kb.schema_table_name,
                                                                    results_to_result=self.max_results_to_retrieve
                                                                   )
         # Get the length of results and a do a lost in middle reorder, if required
@@ -263,6 +266,11 @@ Respond appropriately based on the guidelines above, without mentioning them to 
         # Use the found content and form a prompt
         found_context = "\n".join([ f"{idx+1}. {kbchunk.content}"  for idx, kbchunk in enumerate(results)])
         prompt = prompt_template.format(query, found_context)
+
+        # Set the context learning from knowledge base, otherwise, override it with provided list
+        context_learning = kb.context_learning
+        if override_context_learning:
+            context_learning = override_context_learning
 
         # Get the context learning and concatenate with the prompt to form a new prompt
         message = context_learning + [{"role": "user", "content": prompt}]

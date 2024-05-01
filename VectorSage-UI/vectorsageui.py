@@ -1,33 +1,21 @@
 from urllib.parse import urljoin
-from typing import List, Dict, Any
+from typing import List
 from dataclasses import dataclass, field
-from dataclasses_json import dataclass_json
 import gradio
 import  json
 import logging
 import requests
 
-from SSERequestClient import SSERequestClient
-
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-
-@dataclass_json
-@dataclass
-class KnowledgeBase:
-    topic_display_name: str
-    schema_table_name: str
-    topic_domain: str
-    context_learning: List[Dict[str, Any]]
-    id: int = None
 
 @dataclass
 class VectorSageUI:
     llm_rag_services_host: str
     listen_port: int
-    cached_knowledgebases: List[KnowledgeBase] = field(default_factory=list)
-    current_knowledgebase: KnowledgeBase = None
-    
+    cached_knowledgebases: List[str] = field(default_factory=list)
+    current_knowledgebase: str = None
+
     ### GRADIO TOP LEVEL FUNCTIONS
     def _init_history(self, messages_history: gradio.State):
         messages_history = []
@@ -47,15 +35,12 @@ class VectorSageUI:
         # messages = messages_history
 
         if self.current_knowledgebase:
-            cur_kb = self.current_knowledgebase
             url = urljoin(self.llm_rag_services_host, "respond_to_user_query")
             # we will just initate a stream and do nothing with the messages. 
             with requests.post(url, data = {
                             "query": user_query,
-                            "topic_domain": cur_kb.topic_domain,
-                            "schema_table_name": cur_kb.schema_table_name,
+                            "topic_display_name": self.current_knowledgebase,
                             "do_lost_in_middle_reorder": True,
-                            "context_learning": json.dumps(cur_kb.context_learning),
                             "stream": True
                         }
                         , stream=True) as response_stream:
@@ -82,17 +67,16 @@ class VectorSageUI:
     def _fetch_dropdown_knowledge_options(self):
         """Fetch options for the dropdown from the database."""
         endpoint = urljoin(self.llm_rag_services_host,"list_knowledge_bases")
-        response = requests.get(endpoint)
-        knowledge_bases_json = response.json()['knowledge_bases']
-        knowledge_bases = [KnowledgeBase.from_json(json.dumps(kb)) for kb in knowledge_bases_json]
-        return knowledge_bases
+        response = requests.get(endpoint,params= {"topic_display_name_only": True})
+        knowledge_bases_names_json = response.json()['knowledge_bases']
+        knowledge_base_names = [kbnames for kbnames in knowledge_bases_names_json]
+        return knowledge_base_names
 
     def _handle_dropdown_selection(self, selected_topic: str):
         """Handle the dropdown selection and fetch more data."""
         logging.info(f"handling dropdown - selected: {selected_topic}")
         kb_list = self.cached_knowledgebases
-        foundItem = next(filter(lambda x: x.topic_display_name == selected_topic, kb_list), kb_list[0])
-        self.current_knowledgebase = foundItem
+        self.current_knowledgebase = selected_topic
 
     def _refresh_dropdown_data(self):
         """Function to refresh dropdown data from the database."""
@@ -100,19 +84,10 @@ class VectorSageUI:
         self.cached_knowledgebases = kb_list
         cur_kb = self.current_knowledgebase
         
-        topic_display_name = None
-        display_options = []
-        if cur_kb == None and len(kb_list) > 0:
+        if (cur_kb == None and len(kb_list) > 0) or (cur_kb != None and len(kb_list) > 0 and cur_kb not in kb_list):
             self.current_knowledgebase = kb_list[0]
-            display_options = [kb.topic_display_name for kb in kb_list]
-            topic_display_name = self.current_knowledgebase.topic_display_name
-        elif cur_kb != None and len(kb_list) > 0:
-            foundItem = next(filter(lambda x: x.topic_display_name == cur_kb.topic_display_name, kb_list), kb_list[0])
-            display_options = [kb.topic_display_name for kb in kb_list]
-            self.current_knowledgebase = foundItem
-            topic_display_name = foundItem.topic_display_name
-        
-        return gradio.Dropdown(choices=display_options, label="Knowledge Base", value = topic_display_name, interactive=True)
+
+        return gradio.Dropdown(choices=self.cached_knowledgebases, label="Select Knowledge Base", value =self.current_knowledgebase, interactive=True)
 
     def start(self):
         with gradio.Blocks(fill_height=True) as grai_ui:
