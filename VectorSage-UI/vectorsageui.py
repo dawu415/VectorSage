@@ -58,6 +58,7 @@ class VectorSageUI:
 
                     yield history, messages_history, gradio.Textbox(placeholder="Providing response. Please wait...", interactive=False)
 
+                logging.info(f"Completion Reason: {response_stream.reason}")
         # Update the chat history with the LLM response and return
         messages_history += [{"role": "assistant", "content": history[-1][1] }]
 

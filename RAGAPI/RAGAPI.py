@@ -24,7 +24,7 @@ RAG_PROVIDER: RAGDataProvider = None
 #### API Routes
 upload_parser = reqparse.RequestParser()
 upload_parser.add_argument('files', type=FileStorage, location='files', action="append", required=True, help='One or more Markdown Documents to upload')
-upload_parser.add_argument('token_chunk_size', type=int, default=128, help='Token chunk size used for chunking')
+upload_parser.add_argument('token_chunk_size', type=int, default=512, help='Token chunk size used for chunking')
 upload_parser.add_argument('topic_display_name', required=True, help='Topic display name')
 upload_parser.add_argument('dry_run_level', type=int, default=0, help='Dry run level. 0 - chunk and insert, 1 - text chunk with embeddings returned, 2 - text chunk return only')
 @api.route('/upload_files')

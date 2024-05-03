@@ -322,7 +322,9 @@ class RAGDatabase:
             with self.connect() as conn, conn.cursor() as cur:
                 context_learning = cur.execute(context_selectsql).fetchone()
 
-                context_learning = context_learning[0]
+                if isinstance(context_learning, list):
+                    context_learning = context_learning[0]
+                
                 if context_learning == None:
                     context_learning = []
                 elif isinstance(context_learning, str):
