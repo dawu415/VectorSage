@@ -33,6 +33,7 @@ class RAGDataProvider:
         embed_instruction = f"Represent this {topic_domain} document for retrieval:"
 
         try: 
+            results_list = []
             for file in markdown_files:
                 logging.info("Reading in Markdown File...")
                 markdown_content = file.read().decode('utf-8')
@@ -58,9 +59,10 @@ class RAGDataProvider:
                 result = [KnowledgeBaseEmbedding(content=text_emb[0], 
                                                  embedding=text_emb[1], 
                                                  id=idx+1) 
-                            for idx,text_emb in enumerate(itertools.zip_longest(text_chunks, embeddings, fillvalue=[]))]                    
+                            for idx,text_emb in enumerate(itertools.zip_longest(text_chunks, embeddings, fillvalue=[]))]      
+                results_list.append((file.filename, result))              
 
-                return result
+            return results_list
         except Exception as e:
             raise BufferError( f"Error processing file {file.filename}: {e}")
 
@@ -252,7 +254,7 @@ Respond appropriately based on the guidelines above, without mentioning them to 
         context_learning = kb.context_learning
         if override_context_learning:
             context_learning = override_context_learning
-        
+
         # Get the context learning and concatenate with the prompt to form a new prompt
         message = context_learning + [{"role": "user", "content": prompt}]
 

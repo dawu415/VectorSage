@@ -127,6 +127,7 @@ class KnowledgeBaseEmbeddingResult:
                         limit=Literal(returned_results)
                    )
 
+@dataclass_json
 @dataclass
 class KnowledgeBaseEmbedding:
     content: str
@@ -250,7 +251,8 @@ class RAGDatabase:
             knowledgebase_selectsql = KnowledgeBase.generate_get_knowledgebase_sql(self.default_schema, topic_display_name)
             
             def parse_context_learning(record:KnowledgeBase):
-                record.context_learning = json.loads(record.context_learning)
+                if isinstance(record.context_learning, str):
+                    record.context_learning = json.loads(record.context_learning)
                 return record
 
             with self.connect() as conn, conn.cursor(row_factory=class_row(KnowledgeBase)) as cur:

@@ -10,4 +10,5 @@ pyyaml
 argparse
 psycopg[binary]
 flask
+flask-restx
 dataclasses-json
