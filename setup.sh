@@ -19,7 +19,7 @@ if [[ "$SKIP_PUSH" == "false" ]]; then
     ./create-services.sh
     
     echo "Deploying apps..."
-    ./deploy-chunker.sh
+    ./deploy-ragapi.sh
 
     CHUNKER_APP_NAME=$(awk '/^[ ]*- name:/{print $NF}' RAGAPI/manifest.yml | tr -d '[:space:]')
     CHUNKER_ROUTE=$(cf app "$CHUNKER_APP_NAME" | awk '/routes/{print $2}' | cut -d, -f1)
