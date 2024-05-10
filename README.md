@@ -1,3 +1,9 @@
+# NOTE
+This repository has been moved to 
+
+[VectorSage - GenAI For TAS Samples](https://github.com/nkuhn-vmw/GenAI-for-TAS-Samples/tree/main/vectorsage)
+
+
 # VectorSage
 
 VectorSage is a Retrieval Augmented Generation (RAG) application that leverages dense embeddings for retrieving information from a document set. This application demonstrates the power of RAG with the Gen AI Tile and the Postgres Tile on TAS. It also introduces Knowledge bases, where it is possible to allow users to select specific Knowledge context of topics to make queries against. For example, one for Cloud Foundry and another for baking bread. 
